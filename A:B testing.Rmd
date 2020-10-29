@@ -1,0 +1,119 @@
+---
+title: "A/B testing"
+author: "Mingwei Wu"
+output: pdf_document
+---
+
+```{r}
+click_data<-read.csv(url("https://assets.datacamp.com/production/repositories/2292/datasets/4407050e9b8216249a6d5ff22fd67fd4c44e7301/click_data.csv"), header=TRUE, sep=",")
+click_data$visit_date<-as.Date(click_data$visit_date)
+head(click_data)
+```
+```{r}
+library("tidyverse")
+library("lubridate")
+library("ggplot2")
+min(click_data$visit_date) 
+max(click_data$visit_date) #check the date range in the database
+```
+```{r}
+click_data%>%
+  group_by(wday(visit_date))%>%
+  summarize(conversion_rate=mean(clicked_adopt_today)) #count the conversion rate for day of visit date
+```
+```{r}
+click_data_sum<-click_data%>%
+  group_by(week(visit_date))%>%
+  summarise(conversion_rate=mean(clicked_adopt_today)) 
+head(click_data_sum) #count the conversion_rate for week of conversion rate
+```
+
+```{r}
+library("scales")
+click_data_sum%>%
+  ggplot(aes(x=`week(visit_date)`,y=conversion_rate))+geom_point()+geom_line()+ scale_y_continuous(limits=c(0,1), labels = percent)+xlab("weeks") # data visualization for conversion rate in weeks
+```
+```{r}
+library("powerMediation")
+help("SSizeLogisticBin")
+total_sample_size<- SSizeLogisticBin(p1= 0.54,
+                                     p2= 0.64,
+                                     B=0.5,
+                                     alpha=0.05,
+                                     power=0.8)
+total_sample_size # Use the power-test to provide the sample size
+```
+```{r}
+experiment_data<-read.csv(url("https://assets.datacamp.com/production/repositories/2292/datasets/52b52cb1ca28ce10f9a09689325c4d94d889a6da/experiment_data.csv"),header = TRUE, sep=",")
+experiment_data$visit_date<-as.Date(experiment_data$visit_date)
+head(experiment_data)# set up the A/B testing, control group and test group
+```
+
+```{r}
+experiment_data_sum<-experiment_data%>%
+  group_by (visit_date , condition)%>%
+  summarise(conversion_rate=mean(clicked_adopt_today))
+experiment_data_sum%>%
+  ggplot(aes(x=visit_date,
+             y=conversion_rate,
+             color= condition,group=condition))+geom_point()+geom_line() #plot between the control and test
+```
+```{r}
+library(broom)
+glm(clicked_adopt_today~condition,
+    family = "binomial",
+    data=experiment_data)%>%
+  tidy() # doing the logistic regression for using condition to predict the cliked rate today.
+```
+```{r}
+total_sample_size <- SSizeLogisticBin(p1 =0.39,
+                                      p2=0.59,
+                                      B =0.5,
+                                      alpha=0.05,
+                                      power=0.8)
+total_sample_size #run logistic regression power analysis for sample size into our set up data
+```
+
+```{r}
+month_click<-experiment_data%>%
+  mutate(week = week(visit_date))%>%
+  group_by(week,condition)%>%
+  summarise(conversion_rate=mean(clicked_adopt_today))
+month_click%>%
+  ggplot(aes(week,conversion_rate, color= condition, group= condition))+geom_point(size=4)+geom_line(lwd=1)+scale_y_continuous(limits =c(0,1), labels = percent) 
+```
+
+
+```{r}
+visit_website2018<-read.csv(url("https://assets.datacamp.com/production/repositories/2292/datasets/b502094e5de478105cccea959d4f915a7c0afe35/data_viz_website_2018_04.csv"),header=TRUE,sep=",")
+head(visit_website2018)
+```
+```{r}
+library(broom)
+ab_experiment<-glm(clicked_like~condition, family="binomial",data=visit_website2018)%>%
+  tidy()   #runing logistic regression
+ab_experiment
+```
+```{r}
+ab_experiment_result<- t.test(time_spent_homepage_sec~condition,data=visit_website2018)  #run t-test
+ab_experiment_result
+```
+
+```{r}
+##sequential analysis
+library(gsDesign)
+# run sequential analysis
+seq<-gsDesign(k=3,
+              test.type = 1,
+              alpha= 0.05,
+              beta= 0.2,
+              sfu="Pocock")  # k is look for how many times
+seq
+```
+```{r}
+# FILL in maxium number of points and compute points  per group and find stopping
+max_n<-1500
+max_per<-max_n /2
+stopping_point<- max_per *seq$timing
+stopping_point
+```
