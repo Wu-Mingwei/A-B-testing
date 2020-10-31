@@ -4,36 +4,58 @@ author: "Mingwei Wu"
 output: pdf_document
 ---
 
-```{r}
+# Introduction for A/B testing
+### A general framework of hypothesis testing between two groups to establish a casual relationship between actions and results.
+
+##Understand problem&objectives
+##Come up with hypothesis
+##Code change and testing
+##Run experiment and monitor
+##Data analysis
+
+
+#Blackground
+### Website clicking is the key point to the web. Assuming to check the cliked like in the website, track the metrics and run the experiment.
+
+# Data Description
+### visit_date: the date of customer visit the website.
+### clicked_adopt_today: customer click at visit day.
+### condition: different group
+### time_spent_homepage_sec: customer spend a time of second in the homepage
+### clicked_article: article for click by customer
+### clicked_like: take like for article
+### clicked_share: clicked share
+
+```{r echo=FALSE}
 click_data<-read.csv(url("https://assets.datacamp.com/production/repositories/2292/datasets/4407050e9b8216249a6d5ff22fd67fd4c44e7301/click_data.csv"), header=TRUE, sep=",")
 click_data$visit_date<-as.Date(click_data$visit_date)
 head(click_data)
 ```
-```{r}
+```{r echo=FALSE}
 library("tidyverse")
 library("lubridate")
 library("ggplot2")
 min(click_data$visit_date) 
 max(click_data$visit_date) #check the date range in the database
 ```
-```{r}
+```{r echo=FALSE}
 click_data%>%
   group_by(wday(visit_date))%>%
   summarize(conversion_rate=mean(clicked_adopt_today)) #count the conversion rate for day of visit date
 ```
-```{r}
+```{r echo=FALSE}
 click_data_sum<-click_data%>%
   group_by(week(visit_date))%>%
   summarise(conversion_rate=mean(clicked_adopt_today)) 
 head(click_data_sum) #count the conversion_rate for week of conversion rate
 ```
-
-```{r}
+### plot the clciked rate in weeks in 2017. Throught the graph, assume the summer and winter the web cliking is higher than other weeks. provide the hypothesis for the children vacation, is it raise the website clicking?
+```{r echo=FALSE}
 library("scales")
 click_data_sum%>%
   ggplot(aes(x=`week(visit_date)`,y=conversion_rate))+geom_point()+geom_line()+ scale_y_continuous(limits=c(0,1), labels = percent)+xlab("weeks") # data visualization for conversion rate in weeks
 ```
-```{r}
+```{r echo=FALSE}
 library("powerMediation")
 help("SSizeLogisticBin")
 total_sample_size<- SSizeLogisticBin(p1= 0.54,
@@ -43,13 +65,13 @@ total_sample_size<- SSizeLogisticBin(p1= 0.54,
                                      power=0.8)
 total_sample_size # Use the power-test to provide the sample size
 ```
-```{r}
+```{r echo=FALSE}
 experiment_data<-read.csv(url("https://assets.datacamp.com/production/repositories/2292/datasets/52b52cb1ca28ce10f9a09689325c4d94d889a6da/experiment_data.csv"),header = TRUE, sep=",")
 experiment_data$visit_date<-as.Date(experiment_data$visit_date)
 head(experiment_data)# set up the A/B testing, control group and test group
 ```
-
-```{r}
+### After set up 2 group, the testing is runs good in conversion rate than the control group.
+```{r echo=FALSE}
 experiment_data_sum<-experiment_data%>%
   group_by (visit_date , condition)%>%
   summarise(conversion_rate=mean(clicked_adopt_today))
@@ -58,14 +80,14 @@ experiment_data_sum%>%
              y=conversion_rate,
              color= condition,group=condition))+geom_point()+geom_line() #plot between the control and test
 ```
-```{r}
+```{r echo=FALSE}
 library(broom)
 glm(clicked_adopt_today~condition,
     family = "binomial",
     data=experiment_data)%>%
   tidy() # doing the logistic regression for using condition to predict the cliked rate today.
 ```
-```{r}
+```{r echo=FALSE}
 total_sample_size <- SSizeLogisticBin(p1 =0.39,
                                       p2=0.59,
                                       B =0.5,
@@ -74,7 +96,7 @@ total_sample_size <- SSizeLogisticBin(p1 =0.39,
 total_sample_size #run logistic regression power analysis for sample size into our set up data
 ```
 
-```{r}
+```{r echo=FALSE}
 month_click<-experiment_data%>%
   mutate(week = week(visit_date))%>%
   group_by(week,condition)%>%
@@ -84,22 +106,22 @@ month_click%>%
 ```
 
 
-```{r}
+```{r echo=FALSE}
 visit_website2018<-read.csv(url("https://assets.datacamp.com/production/repositories/2292/datasets/b502094e5de478105cccea959d4f915a7c0afe35/data_viz_website_2018_04.csv"),header=TRUE,sep=",")
 head(visit_website2018)
 ```
-```{r}
+```{r echo=FALSE}
 library(broom)
 ab_experiment<-glm(clicked_like~condition, family="binomial",data=visit_website2018)%>%
   tidy()   #runing logistic regression
 ab_experiment
 ```
-```{r}
+```{r echo=FALSE}
 ab_experiment_result<- t.test(time_spent_homepage_sec~condition,data=visit_website2018)  #run t-test
 ab_experiment_result
 ```
-
-```{r}
+## Sequential analysis sample size
+```{r echo=FALSE}
 ##sequential analysis
 library(gsDesign)
 # run sequential analysis
@@ -110,7 +132,7 @@ seq<-gsDesign(k=3,
               sfu="Pocock")  # k is look for how many times
 seq
 ```
-```{r}
+```{r echo=FALSE}
 # FILL in maxium number of points and compute points  per group and find stopping
 max_n<-1500
 max_per<-max_n /2
